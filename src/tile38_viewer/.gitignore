@@ -1,0 +1,5 @@
+bin
+obj
+*secret*
+test.sql
+console-example-internal.log
