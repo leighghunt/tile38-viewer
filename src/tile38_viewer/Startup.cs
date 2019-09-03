@@ -13,14 +13,18 @@ using Microsoft.EntityFrameworkCore;
 using tile38_viewer.Data;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace tile38_viewer
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration)
+        private readonly ILogger _logger;
+
+        public Startup(IConfiguration configuration, ILogger<Startup> logger)
         {
             Configuration = configuration;
+            _logger = logger;
         }
 
         public IConfiguration Configuration { get; }
@@ -43,6 +47,8 @@ namespace tile38_viewer
                 .AddEntityFrameworkStores<ApplicationDbContext>();
 
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
+
+            _logger.LogInformation("Service configured");
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -50,6 +56,7 @@ namespace tile38_viewer
         {
             if (env.IsDevelopment())
             {
+                _logger.LogInformation("In Development environment");
                 app.UseDeveloperExceptionPage();
                 app.UseDatabaseErrorPage();
             }

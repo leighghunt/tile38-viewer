@@ -4,12 +4,17 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using tile38_viewer.Models;
 
 namespace tile38_viewer.Controllers
 {
     public class HomeController : Controller
     {
+        public HomeController(ILogger<HomeController> logger){
+            logger.LogDebug("Hello from HomeController");
+        }
+
         public IActionResult Index()
         {
             return View();
