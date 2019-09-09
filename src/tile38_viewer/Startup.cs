@@ -14,6 +14,8 @@ using tile38_viewer.Data;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Net.WebSockets;
+using System.Threading;
 
 namespace tile38_viewer
 {
@@ -47,6 +49,7 @@ namespace tile38_viewer
                 .AddEntityFrameworkStores<ApplicationDbContext>();
 
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
+            services.AddSignalR();
 
             _logger.LogInformation("Service configured");
         }
@@ -70,8 +73,13 @@ namespace tile38_viewer
             app.UseHttpsRedirection();
             app.UseStaticFiles();
             app.UseCookiePolicy();
+            app.UseWebSockets();
 
             app.UseAuthentication();
+
+            app.UseSignalR(router => {
+                router.MapHub<tile38_viewer.Hubs.MovementHub>("/movementHub");
+            });
 
             app.UseMvc(routes =>
             {

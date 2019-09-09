@@ -42,3 +42,17 @@ function onLocationError(e) {
 
 map.on('locationerror', onLocationError);
 map.on('locationfound', onLocationFound);
+
+const connection = new signalR.HubConnectionBuilder()
+    .withUrl("/movementHub")
+    .configureLogging(signalR.LogLevel.Information)
+    .build();
+
+connection.start().then(function () {
+    console.log("connected");
+    connection.invoke("emitGeoJSON", 'Hello');
+});
+
+connection.on("emitGeoJSON", (geoJSON) => {
+    console.log(geoJSON);
+});

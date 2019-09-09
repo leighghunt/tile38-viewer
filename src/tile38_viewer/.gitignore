@@ -4,3 +4,4 @@ obj
 test.sql
 console-example-internal.log
 app.db
+node_modules
