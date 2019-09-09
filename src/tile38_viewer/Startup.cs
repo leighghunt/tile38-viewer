@@ -51,6 +51,8 @@ namespace tile38_viewer
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
             services.AddSignalR();
 
+            services.AddHostedService<tile38_viewer.Controllers.TimedHostedService>();
+
             _logger.LogInformation("Service configured");
         }
 
