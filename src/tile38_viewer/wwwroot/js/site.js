@@ -3,7 +3,7 @@
 
 // var porirua = [-41.135461, 174.839714]
 
-var map = L.map('map'); //.setView(porirua, 11);
+var map = L.map('map');//.setView(porirua, 11);
 
 var tileLayerOSM = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
@@ -16,20 +16,34 @@ var theme = 'transport'; // Others: cycle, landscape, outdoors, transport-dark, 
 
 var tileLayerThunderforest = 'https://{s}.tile.thunderforest.com/' + theme + '/{z}/{x}/{y}{r}.png';
 
-var tileLayerUrl = tileLayerThunderforest;
+var tileLayerUrl = tileLayerOSM;
 
 L.tileLayer(tileLayerUrl, {
-  opacity: 0.3,
+//   opacity: 0.3,
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 }).addTo(map);
 
 $.getJSON("Home/GeoFences", function(data) {
-    var geoJSON = L.geoJson(data, {
-        // style: myStyle
-    }).addTo(map);
-
-    map.fitBounds(geoJSON.getBounds());
-});
+    if(data.features.length>0){
+        var geoJSON = L.geoJson(data, {
+            // style: myStyle
+        }).addTo(map);
+    
+        map.fitBounds(geoJSON.getBounds());
+    } else{
+        console.warn("Geofences is empty collection.");
+    }
+})
+.done(function() {
+    console.log( "Added geofences to map" );
+  })
+.fail(function(err) {
+    console.log( "error" );
+    console.log( err );
+})
+// .always(function() {
+// console.log( "complete" );
+// });
 
 
 // map.locate({setView: false, maxZoom: 16});

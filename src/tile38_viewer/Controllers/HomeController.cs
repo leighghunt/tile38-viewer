@@ -19,7 +19,7 @@ namespace tile38_viewer.Controllers
         private readonly ILogger _logger;
 
         ConnectionMultiplexer redis = null;
-        IServer server = null;
+        // IServer server = null;
         IDatabase db = null;
 
         private string geofencesJSON = "";
@@ -32,12 +32,6 @@ namespace tile38_viewer.Controllers
             _logger = logger;
 
             _logger.LogDebug("Hello from HomeController");
-
-            string tile38Connection = configuration.GetConnectionString("Tile38Connection");
-            redis = ConnectionMultiplexer.Connect(tile38Connection);
-            server = redis.GetServer(tile38Connection);
-
-            _logger.LogInformation($"Connected to Tile38 server {tile38Connection}");
         }
 
         public IActionResult Index()
@@ -47,135 +41,67 @@ namespace tile38_viewer.Controllers
         }
 
 
-        public ActionResult<GeoJSON.Net.Feature.FeatureCollection> GeoFences(){
-            
-            db = redis.GetDatabase();
-
-            var result = db.Execute("CHANS", "*");
-            _logger.LogInformation(result.ToString());
-            
-            GeoJSON.Net.Feature.FeatureCollection geofences = new GeoJSON.Net.Feature.FeatureCollection();
-
-            // Top level - collection of features
-            System.Diagnostics.Debug.Assert(result.Type == ResultType.MultiBulk);
-            RedisResult[] topLevelRedisArrayResult = ((RedisResult[])result);
-            foreach(RedisResult redisResult in topLevelRedisArrayResult){
-
-                // Child level - the geofence
-                System.Diagnostics.Debug.Assert(redisResult.Type == ResultType.MultiBulk);
-                RedisResult[] childRedisArrayResult = ((RedisResult[])redisResult);
-
-
-                // First property should be geofence name
-                System.Diagnostics.Debug.Assert(childRedisArrayResult[0].Type == ResultType.BulkString);
-
-                GeoJSON.Net.Feature.Feature feature = null;
-
-                // Last property should be contain 'WITHIN', 'enter,exit', etc, and geofence GeoJSON
-                RedisResult lastChildResult = childRedisArrayResult[childRedisArrayResult.Count()-2];
-                System.Diagnostics.Debug.Assert(lastChildResult.Type == ResultType.MultiBulk);
-                RedisResult[] lastChildResultArray = (RedisResult[])lastChildResult;
-
-                RedisResult finalChildResult = lastChildResultArray[lastChildResultArray.Count()-1];
-                System.Diagnostics.Debug.Assert(finalChildResult.Type == ResultType.BulkString);
-
-                if(finalChildResult.ToString().StartsWith("{\"type\":\"Polygon\"")){
-                    _logger.LogInformation("Found GeoJSON!");
-                    feature = new GeoJSON.Net.Feature.Feature(Newtonsoft.Json.JsonConvert.DeserializeObject<GeoJSON.Net.Geometry.Polygon>(finalChildResult.ToString()));
-                    feature.Properties["Name"] = childRedisArrayResult[0].ToString();
-
-                    geofences.Features.Add(feature);
+        // public ActionResult<GeoJSON.Net.Feature.FeatureCollection> GeoFences(){
+        public JsonResult GeoFences(){
+            try{
+                if(redis == null){
+                    string tile38Connection = _configuration.GetConnectionString("Tile38Connection");
+                    redis = ConnectionMultiplexer.Connect(tile38Connection);
+                    // server = redis.GetServer(tile38Connection);
+                    _logger.LogInformation($"Connected to Tile38 {tile38Connection}");
                 }
 
+                db = redis.GetDatabase();
 
-                // foreach(RedisResult childRedisResult in childRedisArrayResult.ToArray()){
-                //     _logger.LogInformation(childRedisResult.ToString());
+                var result = db.Execute("CHANS", "*");
+                _logger.LogInformation(result.ToString());
+                
+                GeoJSON.Net.Feature.FeatureCollection geofences = new GeoJSON.Net.Feature.FeatureCollection();
 
-                //     if(childRedisResult.Type == ResultType.SimpleString){
-                //         _logger.LogInformation("Child - ResultType.SimpleString");
-                //         _logger.LogInformation(childRedisResult.ToString());
-                //     }
-                // }
+                // Top level - collection of features
+                System.Diagnostics.Debug.Assert(result.Type == ResultType.MultiBulk);
+                RedisResult[] topLevelRedisArrayResult = ((RedisResult[])result);
+                foreach(RedisResult redisResult in topLevelRedisArrayResult){
+
+                    // Child level - the geofence
+                    System.Diagnostics.Debug.Assert(redisResult.Type == ResultType.MultiBulk);
+                    RedisResult[] childRedisArrayResult = ((RedisResult[])redisResult);
 
 
+                    // First property should be geofence name
+                    System.Diagnostics.Debug.Assert(childRedisArrayResult[0].Type == ResultType.BulkString);
+
+                    GeoJSON.Net.Feature.Feature feature = null;
+
+                    // Last property should be contain 'WITHIN', 'enter,exit', etc, and geofence GeoJSON
+                    RedisResult lastChildResult = childRedisArrayResult[childRedisArrayResult.Count()-2];
+                    System.Diagnostics.Debug.Assert(lastChildResult.Type == ResultType.MultiBulk);
+                    RedisResult[] lastChildResultArray = (RedisResult[])lastChildResult;
+
+                    RedisResult finalChildResult = lastChildResultArray[lastChildResultArray.Count()-1];
+                    System.Diagnostics.Debug.Assert(finalChildResult.Type == ResultType.BulkString);
+
+                    if(finalChildResult.ToString().StartsWith("{\"type\":\"Polygon\"")){
+                        _logger.LogInformation("Found GeoJSON!");
+                        feature = new GeoJSON.Net.Feature.Feature(Newtonsoft.Json.JsonConvert.DeserializeObject<GeoJSON.Net.Geometry.Polygon>(finalChildResult.ToString()));
+                        feature.Properties["Name"] = childRedisArrayResult[0].ToString();
+
+                        geofences.Features.Add(feature);
+                    }
+                }
+                return new JsonResult(geofences);
+            } catch (StackExchange.Redis.RedisConnectionException ex){
+                string message = "Unable to connect to Tile38";
+                _logger.LogError(0, ex, message);
+                HttpContext.Response.StatusCode = 500;
+                return new JsonResult(new {message = message, exception = ex});
             }
-            return geofences;
-
-            // if(result.Type == ResultType.MultiBulk){
-            //     RedisResult[] topLevelRedisArrayResult = ((RedisResult[])result);
-            //     foreach(RedisResult redisResult in topLevelRedisArrayResult.ToArray()){
-            //         _logger.LogInformation(redisResult.ToString());
-
-            //         if(redisResult.Type == ResultType.MultiBulk){
-            //             RedisResult[] childRedisArrayResult = ((RedisResult[])redisResult);
-            //             foreach(RedisResult childRedisResult in childRedisArrayResult.ToArray()){
-            //                 _logger.LogInformation(childRedisResult.ToString());
-
-            //                 if(childRedisResult.Type == ResultType.SimpleString){
-            //                     _logger.LogInformation("Child - ResultType.SimpleString");
-            //                     _logger.LogInformation(childRedisResult.ToString());
-            //                 }
-            //                 if(childRedisResult.Type == ResultType.BulkString){
-            //                     _logger.LogInformation("Child - ResultType.BulkString");
-            //                     _logger.LogInformation(childRedisResult.ToString());
-            //                 }
-
-            //                 if(childRedisResult.Type == ResultType.MultiBulk){
-            //                     _logger.LogInformation("Child - ResultType.MultiBulk");
-            //                     _logger.LogInformation(childRedisResult.ToString());
-
-            //                     RedisResult[] finalChildRedisArrayResult = ((RedisResult[])childRedisResult);
-            //                     foreach(RedisResult finalChildRedisResult in finalChildRedisArrayResult.ToArray()){
-            //                         _logger.LogInformation(finalChildRedisResult.ToString());
-
-            //                         if(finalChildRedisResult.Type == ResultType.SimpleString){
-            //                             _logger.LogInformation("Final Child - ResultType.SimpleString");
-            //                             _logger.LogInformation(finalChildRedisResult.ToString());
-            //                         }
-            //                         if(finalChildRedisResult.Type == ResultType.BulkString){
-            //                             _logger.LogInformation("Final Child - ResultType.BulkString");
-            //                             _logger.LogInformation(finalChildRedisResult.ToString());
-
-            //                             if(finalChildRedisResult.ToString().StartsWith("{\"type\":\"Polygon\"")){
-            //                                 _logger.LogInformation("Found GeoJSON!");
-            //                             }
-            //                         }
-            //                     }
-
-
-            //                 }
-            //             }
-            //         }
-
-            //     }
-            // }
-            
-            // string[] arrayResult = ((string[])result);
-            // foreach(string str in arrayResult){
-            //     _logger.LogInformation(str);
-            // }
-            // _logger.LogInformation(((string[])result).ToString());
-
-            // // StackExchange.Redis.RedisServerException: ERR unknown command 'PUBSUB'
-            // foreach(RedisChannel channel in server.SubscriptionChannels()){
-            //     _logger.LogInformation(channel.ToString());
-            // }
-
-            // if(!result.IsNull && !result.IsEmpty){
-
-            // }
-            // GeoJSON.Net.Feature.FeatureCollection features = Newtonsoft.Json.JsonConvert.DeserializeObject<GeoJSON.Net.Feature.FeatureCollection>(result.ToString());
-            // foreach(GeoJSON.Net.Feature.Feature feature in features.Features){
-            //     _logger.LogInformation(feature.ToString());
-
-            // }
-
-            // string name = (string)feature.Properties[eventsNameField];
-
-            // foreach(var result in results){
-            //     _logger.LogInformation(result.ToString());
-            // }
-            // geofencesJSON = Newtonsoft.Json.JsonConvert.SerializeObject(geofences);
+             catch(Exception ex){
+                string message = "Unable to retrieve GeoFences from Tile38";
+                _logger.LogError(0, ex, message);
+                HttpContext.Response.StatusCode = 500;
+                return new JsonResult(new {message = message, exception = ex});
+            }
         }
 
         public IActionResult Privacy()
