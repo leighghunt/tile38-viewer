@@ -1,9 +1,9 @@
 ﻿// Please see documentation at https://docs.microsoft.com/aspnet/core/client-side/bundling-and-minification
 // for details on configuring this project to bundle and minify static web assets.
 
-var porirua = [-41.135461, 174.839714]
+// var porirua = [-41.135461, 174.839714]
 
-var map = L.map('map').setView(porirua, 11);
+var map = L.map('map'); //.setView(porirua, 11);
 
 var tileLayerOSM = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
@@ -23,8 +23,16 @@ L.tileLayer(tileLayerUrl, {
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 }).addTo(map);
 
+$.getJSON("Home/GeoFences", function(data) {
+    var geoJSON = L.geoJson(data, {
+        // style: myStyle
+    }).addTo(map);
 
-map.locate({setView: false, maxZoom: 16});
+    map.fitBounds(geoJSON.getBounds());
+});
+
+
+// map.locate({setView: false, maxZoom: 16});
 
 function onLocationFound(e) {
     var radius = e.accuracy;

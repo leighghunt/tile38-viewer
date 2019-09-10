@@ -34,8 +34,8 @@ namespace tile38_viewer.Controllers
 
         private void DoWork(object state)
         {
-            _hubContext.Clients.All.SendAsync("emitGeoJSON", "Hello from Timed Background Service DoWork()");
-            _logger.LogInformation("Timed Background Service is working.");
+            // _hubContext.Clients.All.SendAsync("emitGeoJSON", "Hello from Timed Background Service DoWork()");
+            // _logger.LogInformation("Timed Background Service is working.");
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
