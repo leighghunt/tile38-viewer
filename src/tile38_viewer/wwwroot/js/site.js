@@ -26,6 +26,9 @@ L.tileLayer(tileLayerUrl, {
 $.getJSON("Home/GeoFences", function(data) {
     if(data.features.length>0){
         var geoJSON = L.geoJson(data, {
+            onEachFeature: function (feature, layer) {
+                layer.bindPopup('<p>'+feature.properties.Name+'</p>');
+            }
             // style: myStyle
         }).addTo(map);
     
