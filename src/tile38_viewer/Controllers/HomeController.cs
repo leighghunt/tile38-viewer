@@ -104,6 +104,47 @@ namespace tile38_viewer.Controllers
             }
         }
 
+        public JsonResult KEYS(string filter){
+            try{
+                if(redis == null){
+                    string tile38Connection = _configuration.GetConnectionString("Tile38Connection");
+                    redis = ConnectionMultiplexer.Connect(tile38Connection);
+                    // server = redis.GetServer(tile38Connection);
+                    _logger.LogInformation($"Connected to Tile38 {tile38Connection}");
+                }
+
+                db = redis.GetDatabase();
+
+                if(filter == null){
+                    filter = "*";
+                }
+
+                var result = db.Execute("KEYS", filter);
+
+                List<string> keyCollection = new List<string>();
+
+                System.Diagnostics.Debug.Assert(result.Type == ResultType.MultiBulk);
+                RedisResult[] redisArrayResult = ((RedisResult[])result);
+                foreach(RedisResult redisResult in redisArrayResult){
+                    System.Diagnostics.Debug.Assert(redisResult.Type == ResultType.BulkString);
+                    keyCollection.Add(redisResult.ToString());
+                }
+
+                return new JsonResult(keyCollection);
+            } catch (StackExchange.Redis.RedisConnectionException ex){
+                string message = "Unable to connect to Tile38";
+                _logger.LogError(0, ex, message);
+                HttpContext.Response.StatusCode = 500;
+                return new JsonResult(new {message = message, exception = ex});
+            }
+             catch(Exception ex){
+                string message = "Unable to retrieve Keys from Tile38";
+                _logger.LogError(0, ex, message);
+                HttpContext.Response.StatusCode = 500;
+                return new JsonResult(new {message = message, exception = ex});
+            }
+        }
+
         public IActionResult Privacy()
         {
             return View();
