@@ -182,6 +182,9 @@ namespace tile38_viewer.Controllers
                         GeoJSON.Net.Feature.Feature feature = Newtonsoft.Json.JsonConvert.DeserializeObject<GeoJSON.Net.Feature.Feature>(featureDetails[1].ToString());
 
                         featureCollection.Features.Add(feature);
+                        if(!feature.Properties.ContainsKey("id")){
+                            feature.Properties["id"] = featureDetails[0].ToString();
+                        }
                     }
 
                 }

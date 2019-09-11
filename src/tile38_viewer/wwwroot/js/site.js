@@ -76,14 +76,20 @@ callWithin = function(){
         + "/" + bounds.getEast()
         , function(data) {
         if(data.features.length>0){
-            // console.log(data);
+            console.log(data);
 
             var geoJSON = L.geoJson(data, {
-            }).addTo(map);
-    
-    
+                onEachFeature: function (feature, layer) {
+                    // layer.bindTooltip('<p>'+feature.properties.name+'</p>',{
+                    //     permanent: true
+                    // }
+                    // ).openTooltip();
+                    layer.bindPopup('<p><em>'+feature.properties.name+'</em></p>' +
+                    '<p>'+feature.properties.id+'</p>');
+                }
+                }).addTo(map);    
         } else{
-            console.warn("Keys is empty collection.");
+            console.warn("WITHIN returned empty collection.");
         }
     })
     .done(function() {
