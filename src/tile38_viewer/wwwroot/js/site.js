@@ -18,12 +18,14 @@ var tileLayerThunderforest = 'https://{s}.tile.thunderforest.com/' + theme + '/{
 
 var tileLayerUrl = tileLayerOSM;
 
+var keys = [];
+
 L.tileLayer(tileLayerUrl, {
 //   opacity: 0.3,
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 }).addTo(map);
 
-$.getJSON("Home/GeoFences", function(data) {
+$.getJSON("api/Tile38/GeoFences", function(data) {
     if(data.features.length>0){
         var geoJSON = L.geoJson(data, {
             onEachFeature: function (feature, layer) {
@@ -41,13 +43,53 @@ $.getJSON("Home/GeoFences", function(data) {
     console.log( "Added geofences to map" );
   })
 .fail(function(err) {
-    console.log( "error" );
-    console.log( err );
+    console.error( "Error getting GeoFences" );
+    console.error( err );
 })
-// .always(function() {
-// console.log( "complete" );
-// });
 
+$.getJSON("api/Tile38/KEYS/*", function(data) {
+    if(data.length>0){
+        keys = data;
+
+        // setInterval(callWithin, 1000);
+        setTimeout(callWithin, 1000);
+    } else{
+        console.warn("Keys is empty collection.");
+    }
+})
+.done(function() {
+    console.log( "Retrieved Keys" );
+  })
+.fail(function(err) {
+    console.error( "Error getting keys" );
+    console.error( err );
+})
+
+callWithin = function(){
+    var bounds = map.getBounds();
+    console.log(bounds);
+    $.getJSON("api/Tile38/WITHIN"
+        + "/" + keys[0]
+        + "/" + bounds.getSouth()
+        + "/" + bounds.getWest()
+        + "/" + bounds.getNorth()
+        + "/" + bounds.getEast()
+        , function(data) {
+        if(data.length>0){
+            console.log(data);
+    
+        } else{
+            console.warn("Keys is empty collection.");
+        }
+    })
+    .done(function() {
+        // console.log( "Called Within" );
+      })
+    .fail(function(err) {
+        console.error( "Error calling WITHIN" );
+        console.error( err );
+    })
+}
 
 // map.locate({setView: false, maxZoom: 16});
 
