@@ -75,8 +75,12 @@ callWithin = function(){
         + "/" + bounds.getNorth()
         + "/" + bounds.getEast()
         , function(data) {
-        if(data.length>0){
-            console.log(data);
+        if(data.features.length>0){
+            // console.log(data);
+
+            var geoJSON = L.geoJson(data, {
+            }).addTo(map);
+    
     
         } else{
             console.warn("Keys is empty collection.");
