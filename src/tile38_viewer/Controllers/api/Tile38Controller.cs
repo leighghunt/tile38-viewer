@@ -25,7 +25,7 @@ namespace tile38_viewer.Controllers
         IDatabase db = null;
 
         public Tile38Controller(IConfiguration configuration, ILogger<Tile38Controller> logger, IHubContext<tile38_viewer.Hubs.MovementHub> hubContext){
-            // _hubContext = hubContext;
+            _hubContext = hubContext;
             // _hubContext.Clients.All.SendAsync("emitGeoJSON", "Hello from Tile38 Controller");
 
             _configuration = configuration;
@@ -73,7 +73,7 @@ namespace tile38_viewer.Controllers
                     System.Diagnostics.Debug.Assert(finalChildResult.Type == ResultType.BulkString);
 
                     if(finalChildResult.ToString().StartsWith("{\"type\":\"Polygon\"")){
-                        _logger.LogInformation("Found GeoJSON!");
+                        // _logger.LogInformation("Found GeoJSON!");
                         GeoJSON.Net.Feature.Feature feature = new GeoJSON.Net.Feature.Feature(Newtonsoft.Json.JsonConvert.DeserializeObject<GeoJSON.Net.Geometry.Polygon>(finalChildResult.ToString()));
                         feature.Properties["Name"] = childRedisArrayResult[0].ToString();
 
@@ -178,7 +178,7 @@ namespace tile38_viewer.Controllers
                     System.Diagnostics.Debug.Assert(featureDetails[1].Type == ResultType.BulkString); // GeoJSON
 
                     if(featureDetails[1].ToString().StartsWith("{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\"")){
-                        _logger.LogInformation("Found GeoJSON!");
+                        // _logger.LogInformation("Found GeoJSON!");
                         GeoJSON.Net.Feature.Feature feature = Newtonsoft.Json.JsonConvert.DeserializeObject<GeoJSON.Net.Feature.Feature>(featureDetails[1].ToString());
 
                         featureCollection.Features.Add(feature);
@@ -189,7 +189,51 @@ namespace tile38_viewer.Controllers
 
                 }
 
+                SubscribeToEvents(key, xMin, yMin, xMax, yMax);
+
                 return new JsonResult(featureCollection);
+
+            } catch (StackExchange.Redis.RedisConnectionException ex){
+                string message = "Unable to connect to Tile38";
+                _logger.LogError(0, ex, message);
+                HttpContext.Response.StatusCode = 500;
+                return new JsonResult(new {message = message, exception = ex});
+            }
+             catch(Exception ex){
+                string message = "Unable to execute WITHIN against Tile38";
+                _logger.LogError(0, ex, message);
+                HttpContext.Response.StatusCode = 500;
+                return new JsonResult(new {message = message, exception = ex});
+            }
+        }
+
+        [HttpGet("SubscribeToEvents/{key}/{xMin}/{yMin}/{xMax}/{yMax}")]
+        public JsonResult SubscribeToEvents(string key, string xMin, string yMin, string xMax, string yMax){
+            try{
+                if(redis == null){
+                    string tile38Connection = _configuration.GetConnectionString("Tile38Connection");
+                    redis = ConnectionMultiplexer.Connect(tile38Connection);
+                    // server = redis.GetServer(tile38Connection);
+                    _logger.LogInformation($"Connected to Tile38 {tile38Connection}");
+                }
+
+                db = redis.GetDatabase();
+
+                string viewName = "view";
+
+                _logger.LogInformation($"SETCHAN {viewName} WITHIN {key} FENCE DETECT enter,exit,cross,inside BOUNDS {xMin} {yMin} {xMax} {yMax}");
+                var result = db.Execute("SETCHAN",  viewName, "WITHIN", key,
+                    "FENCE", "DETECT", "enter,exit,cross,inside",
+                    "BOUNDS", xMin, yMin, xMax, yMax);
+                _logger.LogDebug(result.ToString());
+
+                ISubscriber sub = redis.GetSubscriber();
+                sub.Subscribe(viewName, (channel, message) => {
+                    _logger.LogInformation($"Emitting.... {message.ToString()}");
+                    _hubContext.Clients.All.SendAsync("emitGeoJSON", message.ToString());
+                });
+
+                return new JsonResult(new {result = "OK"});
             } catch (StackExchange.Redis.RedisConnectionException ex){
                 string message = "Unable to connect to Tile38";
                 _logger.LogError(0, ex, message);
