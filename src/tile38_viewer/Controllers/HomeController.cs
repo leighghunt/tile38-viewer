@@ -34,6 +34,16 @@ namespace tile38_viewer.Controllers
             return View();
         }
 
+        public JsonResult Settings()
+        {
+            int refreshInterval = int.Parse(_configuration["RefreshInterval"]);
+            bool useWebSocketsForMovementUpdates = bool.Parse(_configuration["useWebSocketsForMovementUpdates"]);
+            return new JsonResult (new {
+                refreshInterval = refreshInterval,
+                useWebSocketsForMovementUpdates = useWebSocketsForMovementUpdates
+            });
+        }
+
         public IActionResult Privacy()
         {
             return View();

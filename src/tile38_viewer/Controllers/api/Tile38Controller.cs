@@ -24,6 +24,8 @@ namespace tile38_viewer.Controllers
         // IServer server = null;
         IDatabase db = null;
 
+        Dictionary<string, DateTime> lastUpdated = new Dictionary<string, DateTime>();
+
         public Tile38Controller(IConfiguration configuration, ILogger<Tile38Controller> logger, IHubContext<tile38_viewer.Hubs.MovementHub> hubContext){
             _hubContext = hubContext;
             // _hubContext.Clients.All.SendAsync("emitGeoJSON", "Hello from Tile38 Controller");
@@ -77,9 +79,19 @@ namespace tile38_viewer.Controllers
                         GeoJSON.Net.Feature.Feature feature = new GeoJSON.Net.Feature.Feature(Newtonsoft.Json.JsonConvert.DeserializeObject<GeoJSON.Net.Geometry.Polygon>(finalChildResult.ToString()));
                         feature.Properties["Name"] = childRedisArrayResult[0].ToString();
 
+                        ISubscriber sub = redis.GetSubscriber();
+                        sub.Subscribe(feature.Properties["Name"].ToString(), (channel, message) => {
+                            _logger.LogInformation($"Emitting GeoFence {channel} ... {message.ToString()}");
+                            _hubContext.Clients.All.SendAsync("emitGeoFence", message.ToString());
+                        });
+
+
                         geofences.Features.Add(feature);
                     }
                 }
+
+                // SubscribeToGeoFences("*");
+
                 return new JsonResult(geofences);
             } catch (StackExchange.Redis.RedisConnectionException ex){
                 string message = "Unable to connect to Tile38";
@@ -139,9 +151,9 @@ namespace tile38_viewer.Controllers
 
         
 
-        [HttpGet("WITHIN/{key}/{xMin}/{yMin}/{xMax}/{yMax}")]
+        [HttpGet("WITHIN/{key}/{xMin}/{yMin}/{xMax}/{yMax}/{resubscribeToEvents}")]
         // public JsonResult WITHIN(string key, double xMin, double yMin, double xMax, double yMax){
-        public JsonResult WITHIN(string key, string xMin, string yMin, string xMax, string yMax){
+        public JsonResult WITHIN(string key, string xMin, string yMin, string xMax, string yMax, string resubscribeToEvents){
             try{
                 if(redis == null){
                     string tile38Connection = _configuration.GetConnectionString("Tile38Connection");
@@ -189,7 +201,9 @@ namespace tile38_viewer.Controllers
 
                 }
 
-                SubscribeToEvents(key, xMin, yMin, xMax, yMax);
+                if(_configuration["useWebSocketsForMovementUpdates"] == "true" && resubscribeToEvents == "true"){
+                    SubscribeToEvents(key, xMin, yMin, xMax, yMax);
+                }
 
                 return new JsonResult(featureCollection);
 
@@ -229,8 +243,48 @@ namespace tile38_viewer.Controllers
 
                 ISubscriber sub = redis.GetSubscriber();
                 sub.Subscribe(viewName, (channel, message) => {
-                    _logger.LogInformation($"Emitting.... {message.ToString()}");
+
+                    string strMessage = message.ToString();
+                    // dynamic object = Newtonsoft.Json.JsonConvert.DeserializeAnonymousType(strMessage);
+                    // = Newtonsoft.Json.JsonConvert.DeserializeObject(message.ToString());
+                    
+                    _logger.LogInformation($"Emitting Event.... {message.ToString()}");
                     _hubContext.Clients.All.SendAsync("emitGeoJSON", message.ToString());
+                });
+
+                return new JsonResult(new {result = "OK"});
+            } catch (StackExchange.Redis.RedisConnectionException ex){
+                string message = "Unable to connect to Tile38";
+                _logger.LogError(0, ex, message);
+                HttpContext.Response.StatusCode = 500;
+                return new JsonResult(new {message = message, exception = ex});
+            }
+             catch(Exception ex){
+                string message = "Unable to execute WITHIN against Tile38";
+                _logger.LogError(0, ex, message);
+                HttpContext.Response.StatusCode = 500;
+                return new JsonResult(new {message = message, exception = ex});
+            }
+        }
+
+
+        public JsonResult SubscribeToGeoFences(string filter){
+            try{
+                if(redis == null){
+                    string tile38Connection = _configuration.GetConnectionString("Tile38Connection");
+                    redis = ConnectionMultiplexer.Connect(tile38Connection);
+                    // server = redis.GetServer(tile38Connection);
+                    _logger.LogInformation($"Connected to Tile38 {tile38Connection}");
+                }
+
+                db = redis.GetDatabase();
+
+                string viewName = "*";
+
+                ISubscriber sub = redis.GetSubscriber();
+                sub.Subscribe(viewName, (channel, message) => {
+                    _logger.LogInformation($"Emitting GeoFence.... {message.ToString()}");
+                    _hubContext.Clients.All.SendAsync("emitGeoFence", message.ToString());
                 });
 
                 return new JsonResult(new {result = "OK"});
