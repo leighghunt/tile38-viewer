@@ -39,7 +39,7 @@ namespace worker
             Tile38Listener listener = new Tile38Listener(Configuration);
 
             listener.SubscribeToGeoFences();
-            // listener.SubscribeToEvents();
+            listener.SubscribeToEvents(null);
             
             // // Go to sleep so worker can carry on doing it's thing.
             Thread.Sleep(Timeout.Infinite);

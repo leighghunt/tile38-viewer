@@ -20,11 +20,52 @@ namespace worker
 
         Dictionary<string, DateTime> lastUpdated = new Dictionary<string, DateTime>();
 
+        private const string viewPrefix = "view";
+
         public Tile38Listener(IConfiguration configuration){
             _configuration = configuration;
             _logger = NLog.LogManager.GetCurrentClassLogger();
 
             _logger.Debug("Hello from Tile38 Listener");
+        }
+
+        public List<string> KEYS(string filter){
+            try{
+                if(redis == null){
+                    string tile38Connection = _configuration.GetConnectionString("Tile38Connection");
+                    redis = ConnectionMultiplexer.Connect(tile38Connection);
+                    // server = redis.GetServer(tile38Connection);
+                    _logger.Info($"Connected to Tile38 {tile38Connection}");
+                }
+
+                db = redis.GetDatabase();
+
+                if(filter == null){
+                    filter = "*";
+                }
+
+                var result = db.Execute("KEYS", filter);
+
+                List<string> keyCollection = new List<string>();
+
+                System.Diagnostics.Debug.Assert(result.Type == ResultType.MultiBulk);
+                RedisResult[] redisArrayResult = ((RedisResult[])result);
+                foreach(RedisResult redisResult in redisArrayResult){
+                    System.Diagnostics.Debug.Assert(redisResult.Type == ResultType.BulkString);
+                    keyCollection.Add(redisResult.ToString());
+                }
+
+                return keyCollection;
+            } catch (StackExchange.Redis.RedisConnectionException ex){
+                string message = "Unable to connect to Tile38";
+                _logger.Error(ex, message);
+                return null;
+            }
+             catch(Exception ex){
+                string message = "Unable to retrieve Keys from Tile38";
+                _logger.Error(ex, message);
+                return null;
+            }
         }
 
         public bool SubscribeToGeoFences(){
@@ -56,39 +97,17 @@ namespace worker
                     // First property should be geofence name
                     System.Diagnostics.Debug.Assert(childRedisArrayResult[0].Type == ResultType.BulkString);
 
-                    _logger.Info($"Subscribing to GeoFence {childRedisArrayResult[0].ToString()} ...");
+                    string channelName = childRedisArrayResult[0].ToString();
+                    if(!channelName.StartsWith(viewPrefix)){
+                        _logger.Info($"Subscribing to GeoFence {childRedisArrayResult[0].ToString()} ...");
 
-                    ISubscriber sub = redis.GetSubscriber();
-                    sub.Subscribe(childRedisArrayResult[0].ToString(), (channel, message) => {
-                        _logger.Info($"Emitting GeoFence {channel} ... {message.ToString()}");
-                        // _hubContext.Clients.All.SendAsync("emitGeoFence", message.ToString());
-                    });
-
-
-                    // // Last property should be contain 'WITHIN', 'enter,exit', etc, and geofence GeoJSON
-                    // RedisResult lastChildResult = childRedisArrayResult[childRedisArrayResult.Count()-2];
-                    // System.Diagnostics.Debug.Assert(lastChildResult.Type == ResultType.MultiBulk);
-                    // RedisResult[] lastChildResultArray = (RedisResult[])lastChildResult;
-
-                    // RedisResult finalChildResult = lastChildResultArray[lastChildResultArray.Count()-1];
-                    // System.Diagnostics.Debug.Assert(finalChildResult.Type == ResultType.BulkString);
-
-                    // if(finalChildResult.ToString().StartsWith("{\"type\":\"Polygon\"")){
-                    //     GeoJSON.Net.Feature.Feature feature = new GeoJSON.Net.Feature.Feature(Newtonsoft.Json.JsonConvert.DeserializeObject<GeoJSON.Net.Geometry.Polygon>(finalChildResult.ToString()));
-                    //     feature.Properties["Name"] = childRedisArrayResult[0].ToString();
-
-                        // ISubscriber sub = redis.GetSubscriber();
-                        // sub.Subscribe(feature.Properties["Name"].ToString(), (channel, message) => {
-                        //     _logger.Info($"Emitting GeoFence {channel} ... {message.ToString()}");
-                        //     // _hubContext.Clients.All.SendAsync("emitGeoFence", message.ToString());
-                        // });
-
-
-                        // geofences.Features.Add(feature);
-                    // }
+                        ISubscriber sub = redis.GetSubscriber();
+                        sub.Subscribe(channelName, (channel, message) => {
+                            _logger.Info($"Emitting GeoFence {channel} ... {message.ToString()}");
+                            // _hubContext.Clients.All.SendAsync("emitGeoFence", message.ToString());
+                        });
+                    }
                 }
-
-                // SubscribeToGeoFences("*");
 
                 return true;
             } catch (StackExchange.Redis.RedisConnectionException ex){
@@ -103,8 +122,7 @@ namespace worker
             }
         }
 
-        // public JsonResult SubscribeToEvents(string key, string xMin, string yMin, string xMax, string yMax){
-        public bool SubscribeToEvents(string key){
+        public bool SubscribeToEvents(string filter){
             try{
                 if(redis == null){
                     string tile38Connection = _configuration.GetConnectionString("Tile38Connection");
@@ -115,22 +133,26 @@ namespace worker
 
                 db = redis.GetDatabase();
 
-                string viewName = "view";
+                if(filter == null){
+                    filter = "*";
+                }
 
-                _logger.Info($"SETCHAN {viewName} WITHIN {key} FENCE DETECT enter,exit,cross,inside BOUNDS -180 0 180 180");
-                var result = db.Execute("SETCHAN",  viewName, "WITHIN", key, "FENCE", "DETECT", "enter,exit,cross,inside BOUNDS -180 0 180 180");
-                _logger.Debug(result.ToString());
+                foreach(string key in KEYS(filter)){
+                    string viewName = viewPrefix + key;
 
-                ISubscriber sub = redis.GetSubscriber();
-                sub.Subscribe(viewName, (channel, message) => {
+                    _logger.Info($"SETCHAN {viewName} WITHIN {key} FENCE DETECT enter,exit,cross,inside BOUNDS -180 0 180 180");
+                    var result = db.Execute("SETCHAN",  viewName, "WITHIN", key, "FENCE", "DETECT", "enter,exit,cross,inside", "BOUNDS", -180, 0, 180, 180);
+                    _logger.Debug(result.ToString());
 
-                    string strMessage = message.ToString();
-                    // dynamic object = Newtonsoft.Json.JsonConvert.DeserializeAnonymousType(strMessage);
-                    // = Newtonsoft.Json.JsonConvert.DeserializeObject(message.ToString());
-                    
-                    _logger.Info($"Emitting Event.... {message.ToString()}");
-                    // _hubContext.Clients.All.SendAsync("emitGeoJSON", message.ToString());
-                });
+                    ISubscriber sub = redis.GetSubscriber();
+                    sub.Subscribe(viewName, (channel, message) => {
+
+                        string strMessage = message.ToString();
+                        
+                        _logger.Info($"Emitting Event.... {message.ToString()}");
+                        // _hubContext.Clients.All.SendAsync("emitGeoJSON", message.ToString());
+                    });
+                }
 
                 return true;
             } catch (StackExchange.Redis.RedisConnectionException ex){
