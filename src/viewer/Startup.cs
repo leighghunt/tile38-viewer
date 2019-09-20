@@ -49,6 +49,14 @@ namespace tile38_viewer
                 .AddEntityFrameworkStores<ApplicationDbContext>();
 
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
+
+            // services.AddCors(options => options.AddPolicy("CorsPolicy", 
+            //     builder => 
+            //     {
+            //         builder.AllowAnyMethod().AllowAnyHeader()
+            //             .AllowCredentials();
+            //     }));
+
             services.AddSignalR();
 
             services.AddHostedService<tile38_viewer.Controllers.TimedHostedService>();
@@ -75,6 +83,7 @@ namespace tile38_viewer
             app.UseHttpsRedirection();
             app.UseStaticFiles();
             app.UseCookiePolicy();
+            // app.UseCors("CorsPolicy");
             app.UseWebSockets();
 
             app.UseAuthentication();

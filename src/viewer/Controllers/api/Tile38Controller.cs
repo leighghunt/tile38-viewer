@@ -42,7 +42,6 @@ namespace tile38_viewer.Controllers
                 if(redis == null){
                     string tile38Connection = _configuration.GetConnectionString("Tile38Connection");
                     redis = ConnectionMultiplexer.Connect(tile38Connection);
-                    // server = redis.GetServer(tile38Connection);
                     _logger.LogInformation($"Connected to Tile38 {tile38Connection}");
                 }
 
@@ -79,18 +78,9 @@ namespace tile38_viewer.Controllers
                         GeoJSON.Net.Feature.Feature feature = new GeoJSON.Net.Feature.Feature(Newtonsoft.Json.JsonConvert.DeserializeObject<GeoJSON.Net.Geometry.Polygon>(finalChildResult.ToString()));
                         feature.Properties["Name"] = childRedisArrayResult[0].ToString();
 
-                        ISubscriber sub = redis.GetSubscriber();
-                        sub.Subscribe(feature.Properties["Name"].ToString(), (channel, message) => {
-                            _logger.LogInformation($"Emitting GeoFence {channel} ... {message.ToString()}");
-                            _hubContext.Clients.All.SendAsync("emitGeoFence", message.ToString());
-                        });
-
-
                         geofences.Features.Add(feature);
                     }
                 }
-
-                // SubscribeToGeoFences("*");
 
                 return new JsonResult(geofences);
             } catch (StackExchange.Redis.RedisConnectionException ex){
@@ -113,7 +103,6 @@ namespace tile38_viewer.Controllers
                 if(redis == null){
                     string tile38Connection = _configuration.GetConnectionString("Tile38Connection");
                     redis = ConnectionMultiplexer.Connect(tile38Connection);
-                    // server = redis.GetServer(tile38Connection);
                     _logger.LogInformation($"Connected to Tile38 {tile38Connection}");
                 }
 
@@ -158,7 +147,6 @@ namespace tile38_viewer.Controllers
                 if(redis == null){
                     string tile38Connection = _configuration.GetConnectionString("Tile38Connection");
                     redis = ConnectionMultiplexer.Connect(tile38Connection);
-                    // server = redis.GetServer(tile38Connection);
                     _logger.LogInformation($"Connected to Tile38 {tile38Connection}");
                 }
 
@@ -198,96 +186,10 @@ namespace tile38_viewer.Controllers
                             feature.Properties["id"] = featureDetails[0].ToString();
                         }
                     }
-
-                }
-
-                if(_configuration["useWebSocketsForMovementUpdates"] == "true" && resubscribeToEvents == "true"){
-                    SubscribeToEvents(key, xMin, yMin, xMax, yMax);
                 }
 
                 return new JsonResult(featureCollection);
 
-            } catch (StackExchange.Redis.RedisConnectionException ex){
-                string message = "Unable to connect to Tile38";
-                _logger.LogError(0, ex, message);
-                HttpContext.Response.StatusCode = 500;
-                return new JsonResult(new {message = message, exception = ex});
-            }
-             catch(Exception ex){
-                string message = "Unable to execute WITHIN against Tile38";
-                _logger.LogError(0, ex, message);
-                HttpContext.Response.StatusCode = 500;
-                return new JsonResult(new {message = message, exception = ex});
-            }
-        }
-
-        [HttpGet("SubscribeToEvents/{key}/{xMin}/{yMin}/{xMax}/{yMax}")]
-        public JsonResult SubscribeToEvents(string key, string xMin, string yMin, string xMax, string yMax){
-            try{
-                if(redis == null){
-                    string tile38Connection = _configuration.GetConnectionString("Tile38Connection");
-                    redis = ConnectionMultiplexer.Connect(tile38Connection);
-                    // server = redis.GetServer(tile38Connection);
-                    _logger.LogInformation($"Connected to Tile38 {tile38Connection}");
-                }
-
-                db = redis.GetDatabase();
-
-                string viewName = "view";
-
-                _logger.LogInformation($"SETCHAN {viewName} WITHIN {key} FENCE DETECT enter,exit,cross,inside BOUNDS {xMin} {yMin} {xMax} {yMax}");
-                var result = db.Execute("SETCHAN",  viewName, "WITHIN", key,
-                    "FENCE", "DETECT", "enter,exit,cross,inside",
-                    "BOUNDS", xMin, yMin, xMax, yMax);
-                _logger.LogDebug(result.ToString());
-
-                ISubscriber sub = redis.GetSubscriber();
-                sub.Subscribe(viewName, (channel, message) => {
-
-                    string strMessage = message.ToString();
-                    // dynamic object = Newtonsoft.Json.JsonConvert.DeserializeAnonymousType(strMessage);
-                    // = Newtonsoft.Json.JsonConvert.DeserializeObject(message.ToString());
-                    
-                    _logger.LogInformation($"Emitting Event.... {message.ToString()}");
-                    _hubContext.Clients.All.SendAsync("emitGeoJSON", message.ToString());
-                });
-
-                return new JsonResult(new {result = "OK"});
-            } catch (StackExchange.Redis.RedisConnectionException ex){
-                string message = "Unable to connect to Tile38";
-                _logger.LogError(0, ex, message);
-                HttpContext.Response.StatusCode = 500;
-                return new JsonResult(new {message = message, exception = ex});
-            }
-             catch(Exception ex){
-                string message = "Unable to execute WITHIN against Tile38";
-                _logger.LogError(0, ex, message);
-                HttpContext.Response.StatusCode = 500;
-                return new JsonResult(new {message = message, exception = ex});
-            }
-        }
-
-
-        public JsonResult SubscribeToGeoFences(string filter){
-            try{
-                if(redis == null){
-                    string tile38Connection = _configuration.GetConnectionString("Tile38Connection");
-                    redis = ConnectionMultiplexer.Connect(tile38Connection);
-                    // server = redis.GetServer(tile38Connection);
-                    _logger.LogInformation($"Connected to Tile38 {tile38Connection}");
-                }
-
-                db = redis.GetDatabase();
-
-                string viewName = "*";
-
-                ISubscriber sub = redis.GetSubscriber();
-                sub.Subscribe(viewName, (channel, message) => {
-                    _logger.LogInformation($"Emitting GeoFence.... {message.ToString()}");
-                    _hubContext.Clients.All.SendAsync("emitGeoFence", message.ToString());
-                });
-
-                return new JsonResult(new {result = "OK"});
             } catch (StackExchange.Redis.RedisConnectionException ex){
                 string message = "Unable to connect to Tile38";
                 _logger.LogError(0, ex, message);

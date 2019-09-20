@@ -38,6 +38,7 @@ namespace worker
 
             Tile38Listener listener = new Tile38Listener(Configuration);
 
+            listener.ConnectToHub();
             listener.SubscribeToGeoFences();
             listener.SubscribeToEvents(null);
             

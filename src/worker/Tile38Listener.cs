@@ -7,6 +7,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using NLog.Extensions.Logging;
+using Microsoft.AspNetCore.SignalR.Client;
+using System.Net;
+using System.Security.Cryptography.X509Certificates;
+using System.Net.Security;
+using System.Net.Http;
 
 namespace worker
 {
@@ -18,15 +23,62 @@ namespace worker
         ConnectionMultiplexer redis = null;
         IDatabase db = null;
 
+        HubConnection connection;
+
         Dictionary<string, DateTime> lastUpdated = new Dictionary<string, DateTime>();
 
         private const string viewPrefix = "view";
 
+        bool ValidateCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
+        {
+            // TODO: You can do custom validation here, or just return true to always accept the certificate.
+            // DO NOT use custom validation logic in a production application as it is insecure.
+            return true;
+        }
+        
         public Tile38Listener(IConfiguration configuration){
             _configuration = configuration;
             _logger = NLog.LogManager.GetCurrentClassLogger();
 
             _logger.Debug("Hello from Tile38 Listener");
+
+            // // Ignore invalid HTTPS cert
+            // ServicePointManager.ServerCertificateValidationCallback +=
+            //                 (sender, certificate, chain, sslPolicyErrors) => true;
+                            
+            connection = new HubConnectionBuilder()
+                .WithUrl(_configuration.GetConnectionString("HubConnection"), options =>
+                    {
+                        // https://github.com/aspnet/SignalR/issues/3145
+                        options.WebSocketConfiguration = (config) =>
+                        {
+                            config.RemoteCertificateValidationCallback = ValidateCertificate;
+                        };
+                        options.HttpMessageHandlerFactory = (handler) =>
+                        {
+                            if (handler is HttpClientHandler clientHandler)
+                            {
+                                clientHandler.ServerCertificateCustomValidationCallback = ValidateCertificate;
+                            }
+                            return handler;
+                        };
+                    })
+                .Build();
+
+            connection.Closed += async (error) =>
+            {
+                _logger.Error(error);
+                await Task.Delay(new Random().Next(0,5) * 1000);
+                await connection.StartAsync();
+            };      
+        }
+
+        public async void ConnectToHub(){
+            try{
+                await connection.StartAsync();
+            } catch(Exception ex){
+                _logger.Error(ex);    
+            }
         }
 
         public List<string> KEYS(string filter){
@@ -34,7 +86,6 @@ namespace worker
                 if(redis == null){
                     string tile38Connection = _configuration.GetConnectionString("Tile38Connection");
                     redis = ConnectionMultiplexer.Connect(tile38Connection);
-                    // server = redis.GetServer(tile38Connection);
                     _logger.Info($"Connected to Tile38 {tile38Connection}");
                 }
 
@@ -73,7 +124,6 @@ namespace worker
                 if(redis == null){
                     string tile38Connection = _configuration.GetConnectionString("Tile38Connection");
                     redis = ConnectionMultiplexer.Connect(tile38Connection);
-                    // server = redis.GetServer(tile38Connection);
                     _logger.Info($"Connected to Tile38 {tile38Connection}");
                 }
 
@@ -83,8 +133,6 @@ namespace worker
                 var result = db.Execute("CHANS", "*");
                 _logger.Info(result.ToString());
                 
-                // GeoJSON.Net.Feature.FeatureCollection geofences = new GeoJSON.Net.Feature.FeatureCollection();
-
                 // Top level - collection of features
                 System.Diagnostics.Debug.Assert(result.Type == ResultType.MultiBulk);
                 RedisResult[] topLevelRedisArrayResult = ((RedisResult[])result);
@@ -104,7 +152,7 @@ namespace worker
                         ISubscriber sub = redis.GetSubscriber();
                         sub.Subscribe(channelName, (channel, message) => {
                             _logger.Info($"Emitting GeoFence {channel} ... {message.ToString()}");
-                            // _hubContext.Clients.All.SendAsync("emitGeoFence", message.ToString());
+                            connection.InvokeAsync("emitGeoFence", message.ToString());
                         });
                     }
                 }
@@ -147,10 +195,9 @@ namespace worker
                     ISubscriber sub = redis.GetSubscriber();
                     sub.Subscribe(viewName, (channel, message) => {
 
-                        string strMessage = message.ToString();
-                        
-                        _logger.Info($"Emitting Event.... {message.ToString()}");
-                        // _hubContext.Clients.All.SendAsync("emitGeoJSON", message.ToString());
+                        string strMessage = message.ToString();                        
+                        // _logger.Debug($"Emitting Event.... {message.ToString()}");
+                        connection.InvokeAsync("emitGeoJSON", message.ToString());
                     });
                 }
 
@@ -183,7 +230,7 @@ namespace worker
                 ISubscriber sub = redis.GetSubscriber();
                 sub.Subscribe(viewName, (channel, message) => {
                     _logger.Info($"Emitting GeoFence.... {message.ToString()}");
-                    // _hubContext.Clients.All.SendAsync("emitGeoFence", message.ToString());
+                    connection.InvokeAsync("emitGeoFence", message.ToString());
                 });
 
                 return true;

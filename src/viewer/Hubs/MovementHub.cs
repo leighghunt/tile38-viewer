@@ -10,5 +10,11 @@ namespace tile38_viewer.Hubs
         {
             await Clients.Others.SendAsync("emitGeoJSON", geoJSON);
         }
+
+        public async Task EmitGeoFence(string geoFence)
+        {
+            await Clients.Others.SendAsync("emitGeoFence", geoFence);
+        }
+
     }
 }
