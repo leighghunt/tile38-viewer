@@ -10,3 +10,15 @@ Highlights simple enter/exit/cross geofence events:
 ![Clip2](img/clip2.gif)
 
 *May require some configuration.
+
+# Quickstart
+```
+wget https://github.com/leighghunt/tile38-viewer/blob/master/docker-compose.yml
+docker-compose up -d
+```
+
+
+# Building
+```
+
+```
