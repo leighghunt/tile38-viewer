@@ -13,12 +13,7 @@ Highlights simple enter/exit/cross geofence events:
 
 # Quickstart
 ```
-wget https://github.com/leighghunt/tile38-viewer/blob/master/docker-compose.yml
+git clone https://github.com/leighghunt/tile38-viewer.git
+cd tile38-viewer
 docker-compose up -d
-```
-
-
-# Building
-```
-
 ```
