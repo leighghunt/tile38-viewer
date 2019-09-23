@@ -49,7 +49,8 @@ $.getJSON("api/Tile38/GeoFences", function(data) {
     
         map.fitBounds(geoFences.getBounds());
     } else{
-        console.warn("Geofences is empty collection.");
+        console.warn("Geofences collection is empty.");
+        alert("Geofences collection is empty. You may need to refresh this page after inserting data into Tile38");
     }
 })
 .done(function() {
@@ -66,7 +67,8 @@ $.getJSON("api/Tile38/KEYS/*", function(data) {
 
         setTimeout(function() {callWithin(false)}, 3000);
     } else{
-        console.warn("Keys is empty collection.");
+        console.warn("Keys collection is empty.");
+        alert("Keys collection is empty. You may need to refresh this page after inserting data into Tile38");
     }
 })
 .done(function() {

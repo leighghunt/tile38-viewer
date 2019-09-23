@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -28,6 +29,9 @@ namespace worker
         Dictionary<string, DateTime> lastUpdated = new Dictionary<string, DateTime>();
 
         private const string viewPrefix = "view";
+
+        private Timer scanForNewGeoFencesTimer = null;
+        private Timer scanForNewKeysTimer = null;
 
         bool ValidateCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
         {
@@ -65,6 +69,12 @@ namespace worker
                     })
                 .Build();
 
+            int scanForNewGeoFence_ms = _configuration.GetValue<int>("ScanForNewGeoFences_ms");
+            int scanForNewKeys_ms = _configuration.GetValue<int>("ScanForNewKeys_ms");
+
+            scanForNewGeoFencesTimer = new System.Threading.Timer(scanForNewGeoFencesTimerCallback, null,scanForNewGeoFence_ms, scanForNewGeoFence_ms);
+            scanForNewKeysTimer = new System.Threading.Timer(scanForNewKeysTimerCallback, null,scanForNewKeys_ms, scanForNewKeys_ms);
+
             connection.Closed += async (error) =>
             {
                 _logger.Error(error);
@@ -76,9 +86,24 @@ namespace worker
         public async void ConnectToHub(){
             try{
                 await connection.StartAsync();
+            } catch(System.Net.Http.HttpRequestException ex){
+                _logger.Error("Unable to connect to Hub - please ensure that Viewer container is running.");
+                _logger.Error("_configuration.GetConnectionString(\"HubConnection\")");
+                _logger.Error(_configuration.GetConnectionString("HubConnection"));
+                _logger.Error(ex);
             } catch(Exception ex){
-                _logger.Error(ex);    
+                _logger.Error(ex);
             }
+        }
+
+        private void scanForNewGeoFencesTimerCallback(object state)
+        {
+            SubscribeToGeoFences();
+        }
+
+        private void scanForNewKeysTimerCallback(object state)
+        {
+            SubscribeToEvents(null);
         }
 
         public List<string> KEYS(string filter){
@@ -101,6 +126,11 @@ namespace worker
 
                 System.Diagnostics.Debug.Assert(result.Type == ResultType.MultiBulk);
                 RedisResult[] redisArrayResult = ((RedisResult[])result);
+
+                if(redisArrayResult.Count()==0){
+                    _logger.Warn($"Tile38 returned empty Keys collection for filter {filter}.");
+                }
+
                 foreach(RedisResult redisResult in redisArrayResult){
                     System.Diagnostics.Debug.Assert(redisResult.Type == ResultType.BulkString);
                     keyCollection.Add(redisResult.ToString());
@@ -136,6 +166,11 @@ namespace worker
                 // Top level - collection of features
                 System.Diagnostics.Debug.Assert(result.Type == ResultType.MultiBulk);
                 RedisResult[] topLevelRedisArrayResult = ((RedisResult[])result);
+
+                if(topLevelRedisArrayResult.Count()==0){
+                    _logger.Warn("Tile38 returned empty CHANS collection.");
+                }
+                
                 foreach(RedisResult redisResult in topLevelRedisArrayResult){
 
                     // Child level - the geofence
