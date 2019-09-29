@@ -10,7 +10,7 @@ services:
   tile38-viewer:
     image: leighghunt/tile38-viewer
     container_name: tile38-viewer
-    build: ./src/viewer
+    #build: ./src/viewer
     env_file: ./docker-environment-list
     depends_on:
         - tile38
@@ -22,7 +22,7 @@ services:
   tile38-worker:
     image: leighghunt/tile38-worker
     container_name: tile38-worker
-    build: ./src/worker
+    #build: ./src/worker
     env_file: ./docker-environment-list
     depends_on:
         - tile38
