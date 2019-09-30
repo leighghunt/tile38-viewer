@@ -126,12 +126,26 @@ $.getJSON("Home/Settings", function(settings) {
                 var data = JSON.parse(geoJSON);
 
                 var updatedData = {
-                    id:             data.id,
-                    coordinates:    [data.object.geometry.coordinates[1], data.object.geometry.coordinates[0]],
-                    name:           data.object.properties.shipname
+                    id: data.id
+                };
+
+                if(data.object){
+
+                    if(data.object.geometry){
+                        updatedData.coordinates = [data.object.geometry.coordinates[1], data.object.geometry.coordinates[0]];
+                    } else
+                    {
+                        updatedData.coordinates = [data.object.coordinates[1], data.object.coordinates[0]];
+                    }
+
+                    if(data.object.properties && data.object.properties["Name"]){
+                        updatedData.name = data.object.properties["Name"]
+                    } else {
+                        updatedData.name = updatedData.id;
+                    }
+                    updatePosition(updatedData);
+
                 }
-                
-                updatePosition(updatedData);
             });
 
         }

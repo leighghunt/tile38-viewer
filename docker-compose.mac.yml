@@ -10,19 +10,19 @@ services:
   tile38-viewer:
     image: leighghunt/tile38-viewer
     container_name: tile38-viewer
-    #build: ./src/viewer
+    build: ./src/viewer
     env_file: ./docker-environment-list
     depends_on:
         - tile38
     ports:
-      - 80:80
-      - 443:443
+      - 5000:80
+      - 5001:443
     restart: unless-stopped
 
   tile38-worker:
     image: leighghunt/tile38-worker
     container_name: tile38-worker
-    #build: ./src/worker
+    build: ./src/worker
     env_file: ./docker-environment-list
     depends_on:
         - tile38

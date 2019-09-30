@@ -185,6 +185,17 @@ namespace tile38_viewer.Controllers
                         if(!feature.Properties.ContainsKey("id")){
                             feature.Properties["id"] = featureDetails[0].ToString();
                         }
+                    } else {
+                        if(featureDetails[1].ToString().StartsWith("{\"type\":\"Point\"")){
+                            // _logger.LogInformation("Found GeoJSON!");
+                            GeoJSON.Net.Geometry.Point point = Newtonsoft.Json.JsonConvert.DeserializeObject<GeoJSON.Net.Geometry.Point>(featureDetails[1].ToString());
+                            GeoJSON.Net.Feature.Feature feature = new GeoJSON.Net.Feature.Feature(point);
+
+                            featureCollection.Features.Add(feature);
+                            if(!feature.Properties.ContainsKey("id")){
+                                feature.Properties["id"] = featureDetails[0].ToString();
+                            }
+                        }
                     }
                 }
 
