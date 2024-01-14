@@ -37,7 +37,7 @@ namespace tile38_viewer.Controllers
         public JsonResult Settings()
         {
             int refreshInterval = int.Parse(_configuration["RefreshInterval"]);
-            bool useWebSocketsForMovementUpdates = bool.Parse(_configuration["useWebSocketsForMovementUpdates"]);
+            bool useWebSocketsForMovementUpdates = bool.Parse(_configuration["UseWebSocketsForMovementUpdates"]);
             return new JsonResult (new {
                 refreshInterval = refreshInterval,
                 useWebSocketsForMovementUpdates = useWebSocketsForMovementUpdates
