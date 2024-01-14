@@ -17,7 +17,7 @@ services:
       - HubConnection=$${ConnectionStrings:HubConnection}
       - ScanForNewGeoFences_ms=$${ScanForNewGeoFences_ms}
       - ScanForNewKeys_ms=$${ScanForNewKeys_ms}
-      - RefreshInterval=$${ScanForNewKeys_ms}
+      - RefreshInterval=$${RefreshInterval}
       - UseWebSocketsForMovementUpdates=$${UseWebSocketsForMovementUpdates}
     env_file: ./docker-environment-list
     depends_on:
