@@ -19,7 +19,7 @@ services:
       - ScanForNewKeys_ms=${ScanForNewKeys_ms}
       - RefreshInterval=${RefreshInterval}
       - UseWebSocketsForMovementUpdates=${UseWebSocketsForMovementUpdates}
-    env_file: ./docker-environment-list
+    env_file: ./docker-environment-list.env
     depends_on:
         - tile38
     ports:
@@ -38,7 +38,7 @@ services:
       - ScanForNewKeys_ms=${ScanForNewKeys_ms}
       - RefreshInterval=${RefreshInterval}
       - UseWebSocketsForMovementUpdates=${UseWebSocketsForMovementUpdates}
-    env_file: ./docker-environment-list
+    env_file: ./docker-environment-list.env
     depends_on:
         - tile38
         - tile38-viewer
