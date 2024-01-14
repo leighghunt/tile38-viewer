@@ -12,14 +12,6 @@ services:
     container_name: tile38-viewer
     #build: ./src/viewer
 
-    environment:
-      - Tile38Connection=$${ConnectionStrings:Tile38Connection}
-      - HubConnection=$${ConnectionStrings:HubConnection}
-      - ScanForNewGeoFences_ms=$${ScanForNewGeoFences_ms}
-      - ScanForNewKeys_ms=$${ScanForNewKeys_ms}
-      - RefreshInterval=$${ScanForNewKeys_ms}
-      - UseWebSocketsForMovementUpdates=$${UseWebSocketsForMovementUpdates}
-    env_file: ./docker-environment-list
     depends_on:
         - tile38
     ports:
