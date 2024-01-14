@@ -11,6 +11,12 @@ services:
     image: leighghunt/tile38-viewer
     container_name: tile38-viewer
     #build: ./src/viewer
+
+    environment:
+      - ConnectionStrings:Tile38Connection=$${ConnectionStrings:Tile38Connection}
+      - ConnectionStrings:HubConnection=$${ConnectionStrings:HubConnection}
+      - ScanForNewGeoFences_ms=$${ScanForNewGeoFences_ms}
+      - ScanForNewKeys_ms=$${ScanForNewKeys_ms}
     env_file: ./docker-environment-list
     depends_on:
         - tile38
@@ -23,6 +29,11 @@ services:
     image: leighghunt/tile38-worker
     container_name: tile38-worker
     #build: ./src/worker
+    environment:
+      - ConnectionStrings:Tile38Connection=$${ConnectionStrings:Tile38Connection}
+      - ConnectionStrings:HubConnection=$${ConnectionStrings:HubConnection}
+      - ScanForNewGeoFences_ms=$${ScanForNewGeoFences_ms}
+      - ScanForNewKeys_ms=$${ScanForNewKeys_ms}
     env_file: ./docker-environment-list
     depends_on:
         - tile38
