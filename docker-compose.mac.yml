@@ -31,8 +31,8 @@ services:
     container_name: tile38-worker
     build: ./src/worker
     environment:
-      - Tile38Connection=${ConnectionStrings:Tile38Connection}
-      - HubConnection=${ConnectionStrings:HubConnection}
+      - ConnectionStrings:Tile38Connection=${ConnectionStrings:Tile38Connection}
+      - ConnectionStrings:HubConnection=${ConnectionStrings:HubConnection}
       - ScanForNewGeoFences_ms=${ScanForNewGeoFences_ms}
       - ScanForNewKeys_ms=${ScanForNewKeys_ms}
       - RefreshInterval=${RefreshInterval}
