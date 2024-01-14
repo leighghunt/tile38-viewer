@@ -2,3 +2,4 @@ ConnectionStrings:Tile38Connection=tile38:9851
 ConnectionStrings:HubConnection=http://tile38-viewer/movementHub
 ScanForNewGeoFences_ms=60000
 ScanForNewKeys_ms=60000
+UseWebSocketsForMovementUpdates=true
